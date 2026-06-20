@@ -1,160 +1,160 @@
 import 'package:flutter/material.dart';
-
-import '../models/emergency_contact.dart';
-import '../services/emergency_contacts_service.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:skyguardmobileapp/core/widgets/app_snackbar.dart';
+import 'package:skyguardmobileapp/emergency/services/emergency_storage_service.dart';
+import 'package:skyguardmobileapp/emergency/models/emergency_contact.dart';
 
 class EmergencyContactsScreen extends StatefulWidget {
+  static const String routeName = "emergency_contacts";
+
   const EmergencyContactsScreen({super.key});
 
   @override
-  State<EmergencyContactsScreen> createState() =>
-      _EmergencyContactsScreenState();
+  State<EmergencyContactsScreen> createState() => _EmergencyContactsScreenState();
 }
 
-class _EmergencyContactsScreenState
-    extends State<EmergencyContactsScreen> {
-  final EmergencyContactsService _contactsService =
-  EmergencyContactsService();
+class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
+  final EmergencyStorageService _storageService = EmergencyStorageService();
+  final _formKey = GlobalKey<FormState>();
 
-  final TextEditingController _nameController =
-  TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
 
-  final TextEditingController _phoneController =
-  TextEditingController();
+  // ✨ متغير جديد لحفظ صلة القرابة المختار
+  String _selectedRelation = "Father";
 
-  final TextEditingController _relationController =
-  TextEditingController();
-
-  List<EmergencyContact> contacts = [];
-
-  bool isLoading = true;
-  bool isSubmitting = false;
+  List<EmergencyContact> _contacts = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    loadContacts();
+    _loadContacts();
   }
 
-  Future<void> loadContacts() async {
+  Future<void> _loadContacts() async {
+    setState(() => _isLoading = true);
     try {
-      final data = await _contactsService.getContacts();
-
-      if (!mounted) return;
-
+      final savedContacts = await _storageService.getContacts();
       setState(() {
-        contacts = data;
-        isLoading = false;
+        _contacts = savedContacts;
+        _isLoading = false;
       });
     } catch (e) {
-      if (!mounted) return;
-
-      setState(() {
-        isLoading = false;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString()),
-        ),
-      );
+      setState(() => _isLoading = false);
     }
   }
 
-  Future<void> addContact() async {
-    if (_nameController.text.trim().isEmpty ||
-        _phoneController.text.trim().isEmpty ||
-        _relationController.text.trim().isEmpty) {
-      return;
-    }
+  // ➕ دالة إضافة فرد عائلة جديد متوافقة مع الـ id والـ relation والـ Service عندك
+  Future<void> _addContact() async {
+    if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      isSubmitting = true;
-    });
+    // 🧠 توليد ID تلقائي بناءً على الوقت الحالي لتفادي إيرور الـ id
+    final int uniqueId = DateTime.now().millisecondsSinceEpoch;
 
-    try {
-      await _contactsService.addContact(
-        name: _nameController.text.trim(),
-        phone: _phoneController.text.trim(),
-        relation: _relationController.text.trim(),
-      );
+    final newContact = EmergencyContact(
+      id: uniqueId, // ✨ تمرير الـ id المطلوب
+      name: _nameController.text.trim(),
+      phone: _phoneController.text.trim(),
+      relation: _selectedRelation, // ✨ تمرير الـ relation المطلوب
+    );
 
-      _nameController.clear();
-      _phoneController.clear();
-      _relationController.clear();
+    // ✨ استدعاء الدالة الصح المتوقع وجودها في الـ Service عندك (إضافة للـ List الحالية وحفظها)
+    _contacts.add(newContact);
+    await _storageService.saveContacts(_contacts); // غالباً اسمها saveContacts وبتاخد الـ List كاملة عندك
 
-      await loadContacts();
+    _nameController.clear();
+    _phoneController.clear();
 
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Contact added successfully'),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString()),
-        ),
-      );
-    } finally {
-      if (!mounted) return;
-
-      setState(() {
-        isSubmitting = false;
-      });
-    }
+    if (!mounted) return;
+    Navigator.pop(context);
+    AppSnackbar.success(context, 'Family contact added successfully!');
+    _loadContacts();
   }
 
-  Future<void> deleteContact(int index) async {
-    final contact = contacts[index];
+  // ❌ دالة حذف فرد عائلة متوافقة مع الـ Service عندك
+  Future<void> _deleteContact(EmergencyContact contact) async {
+    _contacts.removeWhere((element) => element.id == contact.id);
+    await _storageService.saveContacts(_contacts); // تحديث الحفظ بعد الحذف
 
-    try {
-      await _contactsService.deleteContact(contact.id);
-      await loadContacts();
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Contact deleted successfully'),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString()),
-        ),
-      );
-    }
+    if (!mounted) return;
+    AppSnackbar.info(context, 'Contact removed');
+    _loadContacts();
   }
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _phoneController.dispose();
-    _relationController.dispose();
-
-    super.dispose();
-  }
-
-  Widget buildTextField({
-    required TextEditingController controller,
-    required String label,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      decoration: InputDecoration(
-        labelText: label,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+  void _showAddContactDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder( // لاستخدام الـ Dropdown جوه الدايلوج بسلاسة
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(
+            "Add Family Member 👨‍👩‍👧‍👦",
+            style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: const Color(0xFF014F6E)),
+          ),
+          content: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: _nameController,
+                  decoration: InputDecoration(
+                    labelText: "Member Name",
+                    prefixIcon: const Icon(Icons.person_outline, color: Color(0xFF007BA7)),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  validator: (value) => value == null || value.isEmpty ? 'Enter name' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: InputDecoration(
+                    labelText: "Phone Number",
+                    prefixIcon: const Icon(Icons.phone_outlined, color: Color(0xFF007BA7)),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  validator: (value) => value == null || value.isEmpty ? 'Enter phone number' : null,
+                ),
+                const SizedBox(height: 12),
+                // ✨ Dropdown لاختيار الـ Relation المطلوب من الموديل
+                DropdownButtonFormField<String>(
+                  value: _selectedRelation,
+                  decoration: InputDecoration(
+                    labelText: "Relation",
+                    prefixIcon: const Icon(Icons.people_outline, color: Color(0xFF007BA7)),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: "Father", child: Text("Father")),
+                    DropdownMenuItem(value: "Mother", child: Text("Mother")),
+                    DropdownMenuItem(value: "Brother", child: Text("Brother")),
+                    DropdownMenuItem(value: "Sister", child: Text("Sister")),
+                    DropdownMenuItem(value: "Spouse", child: Text("Spouse")),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setDialogState(() {
+                        _selectedRelation = value;
+                      });
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF007BA7),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: _addContact,
+              child: const Text("Save", style: TextStyle(color: Colors.white)),
+            ),
+          ],
         ),
       ),
     );
@@ -164,88 +164,68 @@ class _EmergencyContactsScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Emergency Contacts'),
+        title: Text("My Family Contacts", style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+        backgroundColor: const Color(0xFF007BA7),
+        foregroundColor: Colors.white,
+        elevation: 0,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            buildTextField(
-              controller: _nameController,
-              label: 'Name',
-            ),
-            const SizedBox(height: 12),
-            buildTextField(
-              controller: _phoneController,
-              label: 'Phone',
-              keyboardType: TextInputType.phone,
-            ),
-            const SizedBox(height: 12),
-            buildTextField(
-              controller: _relationController,
-              label: 'Relation',
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: isSubmitting ? null : addContact,
-                child: isSubmitting
-                    ? const SizedBox(
-                  height: 22,
-                  width: 22,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-                    : const Text('Add Contact'),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: const Color(0xFF007BA7),
+        onPressed: _showAddContactDialog,
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: Text("Add Member", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w500)),
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _contacts.isEmpty
+          ? Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.family_restroom, size: 80, color: Colors.grey[400]),
+              const SizedBox(height: 16),
+              Text(
+                "No Family Contacts Registered Yet",
+                style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey[700]),
               ),
-            ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: isLoading
-                  ? const Center(
-                child: CircularProgressIndicator(),
-              )
-                  : contacts.isEmpty
-                  ? const Center(
-                child: Text(
-                  'No emergency contacts added yet',
-                ),
-              )
-                  : RefreshIndicator(
-                onRefresh: loadContacts,
-                child: ListView.builder(
-                  itemCount: contacts.length,
-                  itemBuilder: (context, index) {
-                    final contact = contacts[index];
-
-                    return Card(
-                      child: ListTile(
-                        leading: const Icon(
-                          Icons.contact_phone,
-                        ),
-                        title: Text(contact.name),
-                        subtitle: Text(
-                          '${contact.phone} • ${contact.relation}',
-                        ),
-                        trailing: IconButton(
-                          icon: const Icon(
-                            Icons.delete,
-                            color: Colors.red,
-                          ),
-                          onPressed: () =>
-                              deleteContact(index),
-                        ),
-                      ),
-                    );
-                  },
-                ),
+              const SizedBox(height: 8),
+              Text(
+                "Add your family contacts below so SkyGuard can automatically alert them during accidents or emergency SOS triggers.",
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[500]),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
+      )
+          : ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _contacts.length,
+        itemBuilder: (context, index) {
+          final contact = _contacts[index];
+          return Card(
+            margin: const EdgeInsets.symmetric(vertical: 6),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            elevation: 2,
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor: const Color(0xFFEAF7FB),
+                child: Text(
+                  contact.relation[0], // أول حرف من صلة القرابة كـ Icon
+                  style: const TextStyle(color: Color(0xFF007BA7), fontWeight: FontWeight.bold),
+                ),
+              ),
+              title: Text(contact.name, style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+              subtitle: Text("${contact.relation} • ${contact.phone}", style: GoogleFonts.poppins()),
+              trailing: IconButton(
+                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                onPressed: () => _deleteContact(contact),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

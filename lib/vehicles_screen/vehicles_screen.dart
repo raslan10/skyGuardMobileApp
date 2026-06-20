@@ -14,34 +14,29 @@ class VehiclesScreen extends StatefulWidget {
   const VehiclesScreen({super.key});
 
   @override
-  State<VehiclesScreen> createState() =>
-      _VehiclesScreenState();
+  State<VehiclesScreen> createState() => _VehiclesScreenState();
 }
 
-class _VehiclesScreenState
-    extends State<VehiclesScreen> {
-  final VehiclesService vehiclesService =
-  VehiclesService();
+class _VehiclesScreenState extends State<VehiclesScreen> {
+  final VehiclesService vehiclesService = VehiclesService();
 
   bool isLoading = true;
-
   List<VehicleModel> vehicles = [];
 
   @override
   void initState() {
     super.initState();
-
     fetchVehicles();
   }
 
   Future<void> fetchVehicles() async {
+    if (!mounted) return;
     setState(() {
       isLoading = true;
     });
 
     try {
-      final result =
-      await vehiclesService.getVehicles();
+      final result = await vehiclesService.getVehicles();
 
       if (!mounted) return;
 
@@ -63,39 +58,23 @@ class _VehiclesScreenState
     }
   }
 
-  Widget buildVehicleCard(
-      VehicleModel vehicle,
-      ) {
+  Widget buildVehicleCard(VehicleModel vehicle) {
     const primaryColor = Color(0xFF007BA7);
 
     return Card(
       elevation: 3,
-      margin:
-      const EdgeInsets.symmetric(
-        vertical: 8,
-      ),
+      margin: const EdgeInsets.symmetric(vertical: 8),
       shape: RoundedRectangleBorder(
-        borderRadius:
-        BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(18),
       ),
       child: ListTile(
-        contentPadding:
-        const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         leading: Container(
-          padding:
-          const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color:
-            primaryColor.withOpacity(
-              0.1,
-            ),
-            borderRadius:
-            BorderRadius.circular(
-              12,
-            ),
+            // ✨ التعديل: استخدام withValues لمنع التحذيرات في الإصدارات الجديدة
+            color: primaryColor.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: const Icon(
             Icons.directions_car,
@@ -111,34 +90,20 @@ class _VehiclesScreenState
           ),
         ),
         subtitle: Padding(
-          padding:
-          const EdgeInsets.only(
-            top: 8,
-          ),
+          padding: const EdgeInsets.only(top: 8),
           child: Column(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 "Plate: ${vehicle.plateNumber}",
-                style:
-                GoogleFonts.poppins(
-                  fontSize: 13,
-                ),
+                style: GoogleFonts.poppins(fontSize: 13),
               ),
-
               const SizedBox(height: 4),
-
               Text(
                 "Device: ${vehicle.deviceId}",
-                style:
-                GoogleFonts.poppins(
-                  fontSize: 13,
-                ),
+                style: GoogleFonts.poppins(fontSize: 13),
               ),
-
               const SizedBox(height: 4),
-
               Row(
                 children: [
                   const Icon(
@@ -146,17 +111,13 @@ class _VehiclesScreenState
                     size: 10,
                     color: Colors.green,
                   ),
-
                   const SizedBox(width: 6),
-
                   Text(
                     vehicle.status,
-                    style:
-                    GoogleFonts.poppins(
+                    style: GoogleFonts.poppins(
                       fontSize: 13,
                       color: Colors.green,
-                      fontWeight:
-                      FontWeight.w500,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
@@ -172,10 +133,9 @@ class _VehiclesScreenState
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) =>
-                  VehicleDetailsScreen(
-                    vehicleId: vehicle.id,
-                  ),
+              builder: (_) => VehicleDetailsScreen(
+                vehicleId: vehicle.id,
+              ),
             ),
           );
         },
@@ -185,105 +145,70 @@ class _VehiclesScreenState
 
   @override
   Widget build(BuildContext context) {
-    const primaryColor =
-    Color(0xFF007BA7);
+    const primaryColor = Color(0xFF007BA7);
 
     return Scaffold(
       appBar: const WaveAppBar(),
-      backgroundColor:
-      Colors.grey.shade100,
+      backgroundColor: Colors.grey.shade100,
       body: RefreshIndicator(
         onRefresh: fetchVehicles,
         child: isLoading
             ? const Center(
-          child:
-          CircularProgressIndicator(),
+          child: CircularProgressIndicator(),
         )
             : vehicles.isEmpty
             ? ListView(
-          physics:
-          const AlwaysScrollableScrollPhysics(),
+          physics: const AlwaysScrollableScrollPhysics(),
           children: [
-            const SizedBox(
-              height: 180,
-            ),
-
+            const SizedBox(height: 180),
             Icon(
               Icons.directions_car,
               size: 90,
-              color:
-              Colors.grey[400],
+              color: Colors.grey[400],
             ),
-
-            const SizedBox(
-              height: 20,
-            ),
-
+            const SizedBox(height: 20),
             Center(
               child: Text(
                 "No vehicles yet",
-                style:
-                GoogleFonts.poppins(
+                style: GoogleFonts.poppins(
                   fontSize: 20,
-                  fontWeight:
-                  FontWeight
-                      .w600,
-                  color:
-                  Colors.grey,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey,
                 ),
               ),
             ),
-
-            const SizedBox(
-              height: 8,
-            ),
-
+            const SizedBox(height: 8),
             Center(
               child: Text(
                 "Tap + to add your first vehicle",
-                style:
-                GoogleFonts.poppins(
-                  color:
-                  Colors.grey[
-                  600],
+                style: GoogleFonts.poppins(
+                  color: Colors.grey[600],
                 ),
               ),
             ),
           ],
         )
             : ListView.builder(
-          physics:
-          const AlwaysScrollableScrollPhysics(),
-          padding:
-          const EdgeInsets.all(
-            14,
-          ),
-          itemCount:
-          vehicles.length,
-          itemBuilder:
-              (context, index) {
-            return buildVehicleCard(
-              vehicles[index],
-            );
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(14),
+          itemCount: vehicles.length,
+          itemBuilder: (context, index) {
+            return buildVehicleCard(vehicles[index]);
           },
         ),
       ),
-      floatingActionButton:
-      FloatingActionButton(
-        backgroundColor:
-        primaryColor,
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: primaryColor,
         onPressed: () async {
-          final result =
-          await Navigator.push<bool>(
+          final result = await Navigator.push<bool>(
             context,
             MaterialPageRoute(
-              builder: (_) =>
-              const AddVehicleScreen(),
+              builder: (_) => const AddVehicleScreen(),
             ),
           );
 
           if (result == true) {
-            fetchVehicles();
+            fetchVehicles(); // إعادة تحميل القائمة تلقائياً فور الإضافة بنجاح
           }
         },
         child: const Icon(
